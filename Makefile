@@ -1,4 +1,6 @@
 NAME := isoage
+CMD_NAME := 
+CMD_PATH := ./cmd/$(CMD_NAME)/
 
 GOBIN ?= $(shell go env GOPATH)/bin
 
@@ -46,10 +48,11 @@ endif
 clean:
 	go clean
 	rm -f $(NAME) coverage.out coverage.html cpu.prof mem.prof $(NAME).test
+	find . -maxdepth 1 -type f -regextype posix-extended -regex '\./$(NAME)[0-9]*\.html' -exec rm {} \;
 
 build: clean
 	go mod tidy
-	go build -ldflags $(LDFLAGS) -o $(NAME) ./cmd/isoage/
+	go build -ldflags $(LDFLAGS) -o $(NAME) $(CMD_PATH)
 
 # --------
 #  check
@@ -58,13 +61,13 @@ build: clean
 check: test cover bench lint vuln
 
 test:
-	go test -race -cover -v -coverprofile=coverage.out -covermode=atomic ./...
+	go test -race -cover -v -coverprofile coverage.out -covermode atomic ./...
 
 cover:
-	go tool cover -html=coverage.out -o coverage.html
+	go tool cover -html coverage.out -o coverage.html
 
 bench:
-	go test -bench . -benchmem -count 5 -benchtime=10000x -cpuprofile=cpu.prof -memprofile=mem.prof
+	go test -bench -benchmem -count 5 -benchtime 10000x -cpuprofile cpu.prof -memprofile mem.prof .
 
 lint: deps-lint
 	golangci-lint run --verbose ./...
@@ -77,7 +80,7 @@ vuln: deps-vuln
 # ----------
 
 version: deps-bump
-	@echo $(shell gobump show -r .)
+	@echo $(shell gobump show -r $(CMD_PATH))
 
 revision: deps-bump
 	@echo $(shell git rev-parse --short HEAD)
@@ -93,6 +96,6 @@ ifndef branch
 endif
 
 bump: check-branch deps-bump
-	gobump up -w .
+	gobump up -w $(CMD_PATH)
 	git commit -am "bump up version to $(VERSION)"
 	git push origin $(branch)
